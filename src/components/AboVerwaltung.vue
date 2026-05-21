@@ -290,6 +290,15 @@ export default {
           if (resAbos.ok) {
             this.$emit('abos-updated', await resAbos.json())
           }
+          this.$emit('show-toast', {
+            text: `Abo #${this.form.aboNr || ''} erfolgreich gespeichert.`,
+            type: 'success'
+          })
+        } else {
+          this.$emit('show-toast', {
+            text: `Fehler beim Speichern über die API. Status: ${res.status}`,
+            type: 'danger'
+          })
         }
       } catch (err) {
         // Offline-Fallback: Änderung nur lokal speichern
@@ -303,6 +312,10 @@ export default {
           neueAbos.push({ ...this.form, aboNr: 'TEMP-' + Date.now() })
         }
         this.$emit('abos-updated', neueAbos)
+        this.$emit('show-toast', {
+          text: 'API ist offline. Abo wurde temporär lokal gespeichert.',
+          type: 'warning'
+        })
       }
 
       this.closeModal()
@@ -319,9 +332,24 @@ export default {
       // API im Hintergrund benachrichtigen
       const baseUrl = localStorage.getItem('apiUrl') || 'http://localhost:5000/api'
       try {
-        await fetch(`${baseUrl}/abos/${nr}`, { method: 'DELETE' })
+        const res = await fetch(`${baseUrl}/abos/${nr}`, { method: 'DELETE' })
+        if (res.ok) {
+          this.$emit('show-toast', {
+            text: `Abo #${nr} erfolgreich über die API gelöscht.`,
+            type: 'success'
+          })
+        } else {
+          this.$emit('show-toast', {
+            text: `Abo #${nr} lokal gelöscht, aber API-Fehler: ${res.status}`,
+            type: 'danger'
+          })
+        }
       } catch (err) {
         console.warn('API offline. Löschen erfolgte nur lokal.')
+        this.$emit('show-toast', {
+          text: `Abo #${nr} wurde nur lokal gelöscht (API offline).`,
+          type: 'warning'
+        })
       }
     },
 
