@@ -47,8 +47,8 @@
         </button>
       </div>
 
-      <!-- Stat-Kacheln Monat -->
-      <div class="stats-grid">
+      <!-- Stat-Kacheln Monat (Netto-Einnahmen wurden auf Wunsch entfernt) -->
+      <div class="stats-grid stats-grid-3">
         <div class="stat-card">
           <div class="stat-icon green">💶</div>
           <div class="stat-value">{{ formatEuro(monatsEinnahmen) }}</div>
@@ -63,11 +63,6 @@
           <div class="stat-icon orange">🏷</div>
           <div class="stat-value">{{ formatEuro(monatsRabatte) }}</div>
           <div class="stat-label">Ermäßigungen gesamt</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon teal">📈</div>
-          <div class="stat-value">{{ formatEuro(monatsNetto) }}</div>
-          <div class="stat-label">Netto-Einnahmen</div>
         </div>
       </div>
 
@@ -388,7 +383,7 @@ export default {
         return s + Math.max(0, basis - end)
       }, 0)
     },
-    // Netto = Einnahmen minus Rabatte
+    // Netto = Einnahmen minus Rabatte (Hinweis: monatsNetto wird in der UI der Monatsabrechnung nicht mehr angezeigt)
     monatsNetto() { return this.monatsEinnahmen - this.monatsRabatte },
 
     // Summe aller Monats-Summen des Jahres
@@ -678,5 +673,12 @@ export default {
   justify-content: space-between;
   font-size: 14px;
   padding: 4px 0;
+}
+
+/* Layout-Anpassung für 3 statt 4 Stat-Karten auf Desktop-Monitoren */
+@media (min-width: 1280px) {
+  .stats-grid-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 </style>
