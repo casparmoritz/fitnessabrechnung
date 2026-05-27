@@ -2,7 +2,7 @@
   <!-- ==========================================
     AboVerwaltung.vue
     MUSS-KRITERIUM: Aboverträge anlegen, bearbeiten, löschen
-    Optionen: Kurse, Getränke, Sauna (Ja/Nein)
+    Feldnamen der C# API: abonr, grundpreis, kuendigsfrist, kurs (int), getraenke (int), laufzeit
     ========================================== -->
   <div class="page">
 
@@ -11,15 +11,15 @@
         <h2 class="page-title">Abo-Verwaltung</h2>
         <p class="page-desc">Abotypen mit Grundpreisen und Zusatzoptionen verwalten</p>
       </div>
-      <button class="btn btn-primary" id="btn-abo-neu" @click="openModal(null)">
-        + Neues Abo
-      </button>
+      <!-- JavaScript: @click öffnet Modal im Neuanlage-Modus (null = kein bestehendes Abo) -->
+      <button class="btn btn-primary" id="btn-abo-neu" @click="openModal(null)">+ Neues Abo</button>
     </div>
 
-    <!-- Stat-Kacheln -->
+    <!-- Statistik-Kacheln (computed-Werte) -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon blue">📋</div>
+        <!-- JavaScript: abos.length aus dem props-Array, reaktiv aktualisiert -->
         <div class="stat-value">{{ abos.length }}</div>
         <div class="stat-label">Abotypen gesamt</div>
       </div>
@@ -40,90 +40,49 @@
       </div>
     </div>
 
-    <!-- Abo-Karten Grid -->
-    <div class="abo-cards-grid" id="abo-grid">
-      <div
-        class="abo-card"
-        v-for="abo in abos"
-        :key="abo.aboNr"
-        :id="'card-abo-' + abo.aboNr"
-      >
-        <!-- Header -->
-        <div class="abo-card-header">
-          <div>
-            <div class="abo-card-nr">Abo</div>
-            <div class="abo-card-name"># {{ abo.aboNr }}</div>
-          </div>
-          <div class="flex gap-sm">
-            <button class="btn btn-sm btn-ghost" :id="'btn-edit-abo-' + abo.aboNr" @click="openModal(abo)">✏️</button>
-            <button class="btn btn-sm btn-danger" :id="'btn-del-abo-' + abo.aboNr" @click="loescheAbo(abo.aboNr)">🗑</button>
-          </div>
-        </div>
-
-        <!-- Preis -->
-        <div class="abo-card-price">
-          {{ formatPreis(abo.grundpreis) }} <span>€/Monat</span>
-        </div>
-
-        <!-- Laufzeit -->
-        <div class="text-muted" style="font-size:12px; margin-bottom:12px;">
-          Kündigungsfrist: {{ abo.kuendigungsfrist || '—' }}
-        </div>
-
-        <!-- Optionen -->
-        <div class="abo-options">
-          <div class="abo-option" :class="{ active: abo.kurs }">
-            <span>🏋️</span> Kurs
-            <span class="ml-auto">{{ abo.kurs ? '✔' : '✗' }}</span>
-          </div>
-          <div class="abo-option" :class="{ active: abo.getraenke }">
-            <span>🥤</span> Getränke
-            <span class="ml-auto">{{ abo.getraenke ? '✔' : '✗' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-if="abos.length === 0" class="card" style="grid-column: 1/-1;">
-        <div class="empty-state">
-          <div class="empty-state-icon">📋</div>
-          <h3>Keine Abotypen vorhanden</h3>
-          <p>Lege das erste Abo an, um loszulegen.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Detaillierte Tabellen-Ansicht -->
-    <div class="card mt-lg">
+    <!-- Tabellen-Ansicht -->
+    <div class="card">
       <div class="card-header">
         <div>
-          <div class="card-title">Alle Abos – Tabellenansicht</div>
-          <div class="card-subtitle">Detaillierter Überblick aller Abotypen</div>
+          <div class="card-title">Alle Abotypen</div>
+          <div class="card-subtitle">Übersicht aller angelegten Abonnements</div>
         </div>
       </div>
       <div class="table-wrapper">
         <table>
           <thead>
             <tr>
-              <th>AboNr</th>
-              <th>Grundpreis</th>
-              <th>Kündigung</th>
-              <th>Kurs</th>
-              <th>Getränke</th>
-              <th>Aktionen</th>
+              <th>AboNr</th><th>Grundpreis</th><th>Kündigung</th>
+              <th>Laufzeit</th><th>Kurs</th><th>Getränke</th><th>Aktionen</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="abo in abos" :key="'tbl-' + abo.aboNr">
-              <td class="font-bold">#{{ abo.aboNr }}</td>
-              <td style="color:var(--clr-accent); font-weight:700;">{{ formatPreis(abo.grundpreis) }} €</td>
-              <td class="td-muted">{{ abo.kuendigungsfrist || '—' }}</td>
+            <!-- JavaScript: v-for mit Schlüssel-Präfix 'tbl-' um DOM-Konflikte zu vermeiden -->
+            <tr v-for="abo in abos" :key="'tbl-' + abo.abonr">
+              <td class="font-bold">#{{ abo.abonr }}</td>
+              <td style="color:var(--clr-accent);font-weight:700;">{{ formatPreis(abo.grundpreis) }} €</td>
+              <td class="td-muted">
+                {{ abo.kuendigsfrist ? new Date(abo.kuendigsfrist).toLocaleDateString('de-DE') : '—' }}
+              </td>
+              <td class="td-muted">{{ laufzeitText(abo.laufzeit) }}</td>
+              <!-- JavaScript: :class Binding wählt Badge-Farbe dynamisch -->
               <td><span :class="abo.kurs ? 'badge badge-success' : 'badge badge-neutral'">{{ abo.kurs ? 'Ja' : 'Nein' }}</span></td>
               <td><span :class="abo.getraenke ? 'badge badge-success' : 'badge badge-neutral'">{{ abo.getraenke ? 'Ja' : 'Nein' }}</span></td>
               <td>
                 <div class="flex gap-sm">
                   <button class="btn btn-sm btn-ghost" @click="openModal(abo)">✏️ Bearbeiten</button>
-                  <button class="btn btn-sm btn-danger" @click="loescheAbo(abo.aboNr)">🗑</button>
+                  <button class="btn btn-sm btn-danger" @click="loescheAbo(abo.abonr)">🗑</button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Leer-Zustand -->
+            <tr v-if="abos.length === 0">
+              <td colspan="7">
+                <div class="empty-state">
+                  <div class="empty-state-icon">📋</div>
+                  <h3>Keine Abotypen vorhanden</h3>
+                  <p>Lege das erste Abo an, um loszulegen.</p>
                 </div>
               </td>
             </tr>
@@ -132,9 +91,8 @@
       </div>
     </div>
 
-    <!-- ==========================================
-      MODAL: Abo anlegen / bearbeiten
-    ========================================== -->
+    <!-- MODAL: Abo anlegen / bearbeiten -->
+    <!-- JavaScript: v-if zeigt Modal nur wenn showModal true ist -->
     <div class="modal-overlay" v-if="showModal" @click.self="closeModal" id="modal-abo-overlay">
       <div class="modal" id="modal-abo">
         <div class="modal-header">
@@ -142,28 +100,45 @@
           <button class="btn btn-icon btn-ghost" id="btn-abo-modal-close" @click="closeModal">✕</button>
         </div>
 
+        <!-- JavaScript: @submit.prevent verhindert Standard-Formular-Reload -->
         <form @submit.prevent="speichereAbo" id="form-abo">
           <div class="form-grid">
 
             <div class="form-group">
-              <label for="abo-input-nr">AboNr</label>
-              <input id="abo-input-nr" type="text" v-model="form.aboNr" :readonly="!!editAbo" placeholder="Automatisch" />
+              <label for="abo-input-nr">AboNr (automatisch)</label>
+              <input id="abo-input-nr" type="text" v-model="form.abonr"
+                     placeholder="Wird automatisch generiert" readonly disabled />
             </div>
 
             <div class="form-group">
               <label for="abo-input-preis">Grundpreis (€/Monat) *</label>
-              <input id="abo-input-preis" type="number" v-model.number="form.grundpreis" required min="0" step="0.01" placeholder="0.00" />
+              <!-- JavaScript: v-model.number konvertiert Eingabe automatisch zu Number -->
+              <input id="abo-input-preis" type="number" v-model.number="form.grundpreis"
+                     required min="0" step="0.01" placeholder="0.00" />
             </div>
 
             <div class="form-group">
               <label for="abo-input-kuendigung">Kündigungsfrist (Datum) *</label>
-              <input id="abo-input-kuendigung" type="date" v-model="form.kuendigungsfrist" required />
+              <!-- JavaScript: v-model bindet das Datum-Eingabefeld (Format YYYY-MM-DD) -->
+              <input id="abo-input-kuendigung" type="date" v-model="form.kuendigsfristDate" required />
             </div>
 
-            <!-- Optionen -->
+            <div class="form-group">
+              <label for="abo-input-laufzeit">Laufzeit *</label>
+              <select id="abo-input-laufzeit" v-model="form.laufzeit" @change="berechneKuendigung">
+                <option value="0-1">1 Monat</option>
+                <option value="0-3">3 Monate</option>
+                <option value="0-6">6 Monate</option>
+                <option value="1-0">1 Jahr</option>
+                <option value="2-0">2 Jahre</option>
+              </select>
+            </div>
+
             <div class="form-group full">
               <label>Inkludierte Leistungen</label>
-              <div class="flex gap-md" style="flex-wrap:wrap; margin-top:4px;">
+              <div class="flex gap-md" style="flex-wrap:wrap;margin-top:4px;">
+                <!-- JavaScript: v-model.number wandelt Checkbox-Wert zu 0/1 (für Oracle) -->
+                <!-- true-value und false-value setzen den Wert bei checked/unchecked -->
                 <label class="checkbox-group">
                   <input type="checkbox" id="abo-check-kurs" v-model="form.kurs" />
                   <span>🏋️ Kurs inklusive</span>
@@ -192,55 +167,50 @@
 
 <script>
 /* =========================================================
-   JAVASCRIPT – AboVerwaltung.vue
-   Zeigt Abo-Karten, Tabelle, Modal-Formular für CRUD
-   Props:  abos[] (alle Abos aus App.vue)
-   Emits:  'abos-updated' → aktualisiertes Array an App.vue
+   ██ JAVASCRIPT – AboVerwaltung.vue
+   CRUD für Abos über die C# API.
+   WICHTIG – Oracle-Datentypen:
+     kurs, getraenke: NUMBER(1) → int 0 oder 1 (nicht bool!)
+     kuendigsfrist:   DATE → ISO-String in der API
+     laufzeit:        INTERVAL YEAR TO MONTH → String "Jahr-Monat" (z.B. "1-0")
    ========================================================= */
 
 export default {
   name: 'AboVerwaltung',
 
-  // Props = Daten die von App.vue übergeben werden
   props: {
-    abos: { type: Array, default: () => [] } // Liste aller Abos
+    abos: { type: Array, default: () => [] }
   },
 
-  // Welche Events diese Komponente nach oben senden darf
-  emits: ['abos-updated'],
+  emits: ['abos-updated', 'show-toast'],
 
-  // data() = alle reaktiven Variablen dieser Komponente
   data() {
     return {
-      // Steuert ob das Modal-Formular sichtbar ist
       showModal: false,
-      // null = Neuanlage, sonst das Abo-Objekt das bearbeitet wird
-      editAbo: null,
+      editAbo:   null,
 
-      // Formular-Felder – mit v-model an die Eingabefelder im Modal gebunden
+      // Formularfelder – camelCase wie die C# API
       form: {
-        aboNr:            '',
-        grundpreis:       0,
-        kuendigungsfrist: '',
-        kurs:             false,
-        getraenke:        false
+        abonr:             '',
+        grundpreis:        0,
+        kuendigsfristDate: '', // lokaler Wert im Format YYYY-MM-DD (für type="date")
+        kurs:              false,  // C# erwartet Boolean
+        getraenke:         false,  // C# erwartet Boolean
+        laufzeit:          '1-0'
       }
     }
   },
 
-  // computed = berechnete Eigenschaften für die Statistik-Kacheln
   computed: {
-    // Günstigster Grundpreis aller Abos
+    // Preisstatistiken für die Kacheln
     minPreis() {
       if (!this.abos.length) return '0,00'
       return Math.min(...this.abos.map(a => a.grundpreis || 0)).toFixed(2).replace('.', ',')
     },
-    // Teuerster Grundpreis aller Abos
     maxPreis() {
       if (!this.abos.length) return '0,00'
       return Math.max(...this.abos.map(a => a.grundpreis || 0)).toFixed(2).replace('.', ',')
     },
-    // Durchschnittlicher Grundpreis aller Abos
     avgPreis() {
       if (!this.abos.length) return '0,00'
       const sum = this.abos.reduce((s, a) => s + (parseFloat(a.grundpreis) || 0), 0)
@@ -249,111 +219,148 @@ export default {
   },
 
   methods: {
-    // Öffnet das Modal-Formular:
-    // - Bei null → Neuanlage (leeres Formular)
-    // - Bei Abo-Objekt → Bearbeiten (Formular mit vorhandenen Daten befüllen)
+    // Öffnet das Modal zum Bearbeiten oder Neuanlegen
     openModal(abo) {
       this.editAbo = abo
       if (abo) {
-        this.form = { ...abo } // Kopie des Objekts
+        // ISO-Datum für type="date" kürzen: "2026-12-31T00:00:00Z" → "2026-12-31"
+        let datumStr = ''
+        if (abo.kuendigsfrist) {
+          const parsed = new Date(abo.kuendigsfrist)
+          if (!isNaN(parsed.getTime())) {
+            datumStr = parsed.toISOString().split('T')[0]
+          }
+        }
+        this.form = {
+          abonr:             abo.abonr,
+          grundpreis:        abo.grundpreis,
+          kuendigsfristDate: datumStr,
+          kurs:              !!abo.kurs,
+          getraenke:         !!abo.getraenke,
+          laufzeit:          abo.laufzeit  || '1-0'
+        }
       } else {
-        this.form = { aboNr: '', grundpreis: 0, kuendigungsfrist: '', kurs: false, getraenke: false }
+        this.form = { abonr: '', grundpreis: 0, kuendigsfristDate: '', kurs: false, getraenke: false, laufzeit: '1-0' }
+        this.berechneKuendigung()
       }
       this.showModal = true
     },
 
-    // Schließt das Modal und setzt editAbo zurück
     closeModal() { this.showModal = false; this.editAbo = null },
 
-    // ✅ IMPLEMENTIERT: Abo speichern (Neuanlage = POST, Bearbeiten = PUT)
+    berechneKuendigung() {
+      const heute = new Date()
+      let jahre = 1
+      let monate = 0
+      
+      if (this.form.laufzeit) {
+        const parts = this.form.laufzeit.split('-')
+        if (parts.length === 2) {
+          jahre = parseInt(parts[0]) || 0
+          monate = parseInt(parts[1]) || 0
+        }
+      }
+      
+      const zieldatum = new Date(heute.getFullYear() + jahre, heute.getMonth() + monate, heute.getDate())
+      
+      const y = zieldatum.getFullYear()
+      const m = String(zieldatum.getMonth() + 1).padStart(2, '0')
+      const d = String(zieldatum.getDate()).padStart(2, '0')
+      this.form.kuendigsfristDate = `${y}-${m}-${d}`
+    },
+
+    /* ── speichereAbo() ─────────────────────────────────────────────
+       Sendet POST (Neuanlage) oder PUT (Bearbeiten).
+       Konvertiert das Datum zurück in ein ISO-Format für die API.
+    ──────────────────────────────────────────────────────────────── */
     async speichereAbo() {
       const baseUrl = localStorage.getItem('apiUrl') || 'http://localhost:5000/api'
 
-      // Bei Neuanlage: Oracle-DB vergibt aboNr automatisch
-      // Bei Bearbeiten: aboNr als Pfad-Parameter (z.B. /abos/A001)
-      const url = this.editAbo
-        ? `${baseUrl}/abos/${this.form.aboNr}`
-        : `${baseUrl}/abos`
+      // Datum von YYYY-MM-DD (HTML input) prüfen und direkt verwenden.
+      // Die API akzeptiert das "YYYY-MM-DD"-Format direkt und wandelt es in ein DateTime-Objekt um.
+      let kuendigsfristFormatted = null
+      if (this.form.kuendigsfristDate) {
+        kuendigsfristFormatted = this.form.kuendigsfristDate
+      } else {
+        this.$emit('show-toast', { text: 'Bitte ein Kündigungsdatum auswählen.', type: 'danger' })
+        return
+      }
+
+      // Body für die API (camelCase-Felder, kurs/getraenke als int)
+      const body = {
+        abonr:        this.form.abonr || 0,
+        grundpreis:   this.form.grundpreis,
+        kuendigsfrist: kuendigsfristFormatted,
+        kurs:         this.form.kurs,
+        getraenke:    this.form.getraenke,
+        laufzeit:     this.form.laufzeit
+      }
+
+      const url    = this.editAbo ? `${baseUrl}/abos/${this.form.abonr}` : `${baseUrl}/abos`
       const method = this.editAbo ? 'PUT' : 'POST'
 
       try {
-        // Formular-Daten als JSON an die API senden
         const res = await fetch(url, {
-          method: method,
+          method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.form)
+          body: JSON.stringify(body)
         })
 
         if (res.ok) {
-          // Nach Erfolg aktuelle Liste nachladen (enthält die echte AboNr der DB)
           const resAbos = await fetch(`${baseUrl}/abos`)
-          if (resAbos.ok) {
-            this.$emit('abos-updated', await resAbos.json())
-          }
-          this.$emit('show-toast', {
-            text: `Abo #${this.form.aboNr || ''} erfolgreich gespeichert.`,
-            type: 'success'
-          })
+          if (resAbos.ok) this.$emit('abos-updated', await resAbos.json())
+          this.$emit('show-toast', { text: `Abo erfolgreich gespeichert.`, type: 'success' })
         } else {
-          this.$emit('show-toast', {
-            text: `Fehler beim Speichern über die API. Status: ${res.status}`,
-            type: 'danger'
-          })
+          const fehler = await res.text()
+          this.$emit('show-toast', { text: `Fehler: ${fehler}`, type: 'danger' })
         }
       } catch (err) {
-        // Offline-Fallback: Änderung nur lokal speichern
-        console.warn('API offline – Änderung nur lokal.', err)
+        console.warn('API offline – lokale Änderung.', err)
         let neueAbos = [...this.abos]
         if (this.editAbo) {
-          const idx = neueAbos.findIndex(a => a.aboNr === this.form.aboNr)
-          if (idx !== -1) neueAbos[idx] = { ...this.form }
+          const idx = neueAbos.findIndex(a => a.abonr === this.form.abonr)
+          if (idx !== -1) neueAbos[idx] = { ...neueAbos[idx], ...body }
         } else {
-          // Temporäre Nummer damit der Eintrag im Browser sichtbar ist
-          neueAbos.push({ ...this.form, aboNr: 'TEMP-' + Date.now() })
+          neueAbos.push({ ...body, abonr: 'TEMP-' + Date.now() })
         }
         this.$emit('abos-updated', neueAbos)
-        this.$emit('show-toast', {
-          text: 'API ist offline. Abo wurde temporär lokal gespeichert.',
-          type: 'warning'
-        })
+        this.$emit('show-toast', { text: 'API offline. Lokal gespeichert.', type: 'warning' })
       }
 
       this.closeModal()
     },
 
-    // ✅ IMPLEMENTIERT: Abo löschen (lokal sofort, API im Hintergrund)
+    // Löscht ein Abo per DELETE-Request
     async loescheAbo(nr) {
       if (!confirm(`Abo #${nr} wirklich löschen?`)) return
 
-      // Sofort lokal entfernen → UI reagiert ohne Wartezeit
-      const neueAbos = this.abos.filter(a => a.aboNr !== nr)
+      const neueAbos = this.abos.filter(a => a.abonr !== nr)
       this.$emit('abos-updated', neueAbos)
 
-      // API im Hintergrund benachrichtigen
       const baseUrl = localStorage.getItem('apiUrl') || 'http://localhost:5000/api'
       try {
         const res = await fetch(`${baseUrl}/abos/${nr}`, { method: 'DELETE' })
         if (res.ok) {
-          this.$emit('show-toast', {
-            text: `Abo #${nr} erfolgreich über die API gelöscht.`,
-            type: 'success'
-          })
+          this.$emit('show-toast', { text: `Abo #${nr} gelöscht.`, type: 'success' })
         } else {
-          this.$emit('show-toast', {
-            text: `Abo #${nr} lokal gelöscht, aber API-Fehler: ${res.status}`,
-            type: 'danger'
-          })
+          this.$emit('show-toast', { text: `API-Fehler: ${res.status}`, type: 'danger' })
         }
       } catch (err) {
-        console.warn('API offline. Löschen erfolgte nur lokal.')
-        this.$emit('show-toast', {
-          text: `Abo #${nr} wurde nur lokal gelöscht (API offline).`,
-          type: 'warning'
-        })
+        this.$emit('show-toast', { text: `Abo #${nr} lokal gelöscht (API offline).`, type: 'warning' })
       }
     },
 
-    // Formatiert eine Zahl als deutsches Preis-Format (z.B. 49.90 → "49,90")
+    // Konvertiert das Oracle INTERVAL-Format "Jahr-Monat" in lesbaren Text
+    laufzeitText(laufzeit) {
+      if (!laufzeit) return '—'
+      const [jahre, monate] = laufzeit.split('-').map(Number)
+      const teile = []
+      if (jahre  > 0) teile.push(`${jahre} Jahr${jahre  > 1 ? 'e' : ''}`)
+      if (monate > 0) teile.push(`${monate} Monat${monate > 1 ? 'e' : ''}`)
+      return teile.join(' ') || '—'
+    },
+
+    // Formatiert Preis als deutsches Format
     formatPreis(p) {
       return parseFloat(p || 0).toFixed(2).replace('.', ',')
     }
@@ -362,80 +369,5 @@ export default {
 </script>
 
 <style scoped>
-/* Abo-Karten Grid */
-.abo-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--sp-md);
-  margin-bottom: var(--sp-lg);
-}
-
-.abo-card {
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--rad-lg);
-  padding: var(--sp-lg);
-  transition: all 250ms ease;
-}
-.abo-card:hover {
-  border-color: var(--clr-primary);
-  box-shadow: 0 0 24px rgba(108,99,255,0.2);
-  transform: translateY(-3px);
-}
-
-.abo-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--sp-sm);
-}
-.abo-card-nr {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--clr-text-dim);
-}
-.abo-card-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--clr-text);
-  margin-top: 2px;
-}
-.abo-card-price {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--clr-accent);
-  letter-spacing: -0.03em;
-  margin-bottom: 4px;
-}
-.abo-card-price span {
-  font-size: 14px;
-  color: var(--clr-text-muted);
-  font-weight: 400;
-}
-
-.abo-options {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.abo-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: var(--rad-sm);
-  font-size: 13px;
-  font-weight: 500;
-  background: var(--clr-bg);
-  color: var(--clr-text-muted);
-  border: 1px solid var(--clr-border);
-}
-.abo-option.active {
-  color: var(--clr-success);
-  border-color: rgba(54,211,153,0.25);
-  background: var(--clr-success-dim);
-}
-.ml-auto { margin-left: auto; }
+.ml-auto { margin-left:auto; }
 </style>

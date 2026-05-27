@@ -1,76 +1,44 @@
 <template>
   <!-- ==========================================
     APP SHELL – Fitti Exempel GmbH
-    Pflichtenheft v1.2 · JCR IT Solution GmbH
+    Hauptkomponente: Sidebar-Navigation & Datenhaltung
     ========================================== -->
   <div id="app-shell">
 
     <!-- ── SIDEBAR ── -->
     <aside class="sidebar">
-      <!-- Logo -->
       <div class="sidebar-logo">
         <div class="logo-icon">💪</div>
         <h1>FittiAbrechnung</h1>
         <span>Fitti Exempel GmbH</span>
       </div>
 
-      <!-- Navigation -->
       <nav class="sidebar-nav">
         <div class="nav-section-label">Verwaltung</div>
 
-        <!-- Kundenverwaltung (Muss-Kriterium) -->
-        <div
-          class="nav-item"
-          :class="{ active: activeView === 'kunden' }"
-          @click="navigate('kunden')"
-          id="nav-kunden"
-        >
-          <span class="nav-icon">👤</span>
-          Kundenverwaltung
+        <div class="nav-item" :class="{ active: activeView === 'kunden' }" @click="navigate('kunden')" id="nav-kunden">
+          <span class="nav-icon">👤</span> Kundenverwaltung
         </div>
-
-        <!-- Abo-Verwaltung (Muss-Kriterium) -->
-        <div
-          class="nav-item"
-          :class="{ active: activeView === 'abos' }"
-          @click="navigate('abos')"
-          id="nav-abos"
-        >
-          <span class="nav-icon">📋</span>
-          Abo-Verwaltung
+        <div class="nav-item" :class="{ active: activeView === 'abos' }" @click="navigate('abos')" id="nav-abos">
+          <span class="nav-icon">📋</span> Abo-Verwaltung
         </div>
 
         <div class="nav-section-label">Finanzen</div>
 
-        <!-- Abrechnungsübersicht (Soll-Kriterium) -->
-        <div
-          class="nav-item"
-          :class="{ active: activeView === 'abrechnungen' }"
-          @click="navigate('abrechnungen')"
-          id="nav-abrechnungen"
-        >
-          <span class="nav-icon">📊</span>
-          Abrechnungen
+        <div class="nav-item" :class="{ active: activeView === 'abrechnungen' }" @click="navigate('abrechnungen')" id="nav-abrechnungen">
+          <span class="nav-icon">📊</span> Abrechnungen
         </div>
-
 
         <div class="nav-section-label">System</div>
 
-        <!-- Einstellungen -->
-        <div
-          class="nav-item"
-          :class="{ active: activeView === 'einstellungen' }"
-          @click="navigate('einstellungen')"
-          id="nav-einstellungen"
-        >
-          <span class="nav-icon">⚙️</span>
-          Einstellungen
+        <div class="nav-item" :class="{ active: activeView === 'einstellungen' }" @click="navigate('einstellungen')" id="nav-einstellungen">
+          <span class="nav-icon">⚙️</span> Einstellungen
         </div>
       </nav>
 
-      <!-- Footer -->
       <div class="sidebar-footer">
-        <div>v1.2 · JCR IT Solution</div>
+        <div>v1.3 · JCR IT Solution</div>
+        <!-- JavaScript: Datum wird reaktiv berechnet (computed: currentDate) -->
         <div style="margin-top:4px;">{{ currentDate }}</div>
       </div>
     </aside>
@@ -85,7 +53,7 @@
           <span class="topbar-subtitle">{{ viewSubtitles[activeView] }}</span>
         </span>
 
-        <!-- API-Verbindungsstatus-Anzeige -->
+        <!-- JavaScript: API-Status-Anzeige mit reaktivem CSS-Klassen-Binding -->
         <div class="api-status-indicator" :class="apiStatus" @click="ladeStammdaten" title="Verbindung neu laden">
           <span class="status-dot"></span>
           <span class="status-text">{{ apiStatusText }}</span>
@@ -93,17 +61,20 @@
         </div>
       </header>
 
-      <!-- Status-Banner bei Verbindungsschwierigkeiten -->
+      <!-- Offline-Banner -->
       <div v-if="apiStatus === 'offline'" class="api-banner offline">
-        <span>⚠️ <strong>API Offline:</strong> Keine Verbindung zum Server ({{ apiBaseUrl }}). Es werden lokale Testdaten verwendet. Änderungen werden nur im Browser gespeichert.</span>
+        <span>⚠️ <strong>API Offline:</strong> Keine Verbindung zum Server ({{ apiBaseUrl }}). Es werden lokale Testdaten verwendet.</span>
+        <!-- JavaScript: @click ruft ladeStammdaten() auf -->
         <button class="btn btn-sm btn-ghost" @click="ladeStammdaten" style="margin-left: auto;">Erneut versuchen</button>
       </div>
       <div v-if="apiStatus === 'online' && showSuccessMessage" class="api-banner online">
-        <span>✅ <strong>API Verbunden:</strong> Erfolgreich mit dem Server ({{ apiBaseUrl }}) verbunden und Stammdaten geladen.</span>
-        <button class="btn-close-banner" @click="showSuccessMessage = false" style="margin-left: auto; background: transparent; border: none; color: inherit; cursor: pointer; font-size: 16px;">✕</button>
+        <span>✅ <strong>API Verbunden:</strong> Erfolgreich mit dem Server verbunden.</span>
+        <!-- JavaScript: @click setzt showSuccessMessage auf false -->
+        <button class="btn-close-banner" @click="showSuccessMessage = false" style="margin-left:auto;background:transparent;border:none;color:inherit;cursor:pointer;font-size:16px;">✕</button>
       </div>
 
       <!-- Toast Benachrichtigungen -->
+      <!-- JavaScript: v-for rendert jede aktive Toast-Meldung aus dem toasts-Array -->
       <div class="toast-container">
         <div v-for="toast in toasts" :key="toast.id" class="toast-msg" :class="toast.type">
           <span class="toast-icon">
@@ -116,20 +87,21 @@
         </div>
       </div>
 
-      <!-- PAGE VIEWS -->
+      <!-- PAGE VIEWS: v-if schaltet die aktive Seite ein -->
       <main class="page-container">
 
-        <!-- Kundenverwaltung -->
+        <!-- JavaScript: props werden per :prop-name="variable" übergeben -->
         <KundenVerwaltung
           v-if="activeView === 'kunden'"
           :kunden="kunden"
           :abos="abos"
           :ermaessigungen="ermaessigungen"
+          :konten="konten"
+          :banken="banken"
           @kunden-updated="onKundenUpdated"
           @show-toast="triggerToast"
         />
 
-        <!-- Abo-Verwaltung -->
         <AboVerwaltung
           v-if="activeView === 'abos'"
           :abos="abos"
@@ -137,7 +109,6 @@
           @show-toast="triggerToast"
         />
 
-        <!-- Abrechnungsübersicht -->
         <AbrechnungsUebersicht
           v-if="activeView === 'abrechnungen'"
           :kunden="kunden"
@@ -145,8 +116,6 @@
           :ermaessigungen="ermaessigungen"
         />
 
-
-        <!-- Einstellungen -->
         <EinstellungenView
           v-if="activeView === 'einstellungen'"
         />
@@ -158,11 +127,11 @@
 
 <script>
 /* =========================================================
-   JAVASCRIPT – App.vue
-   Haupt-Komponente: Sidebar-Navigation & Datenhaltung
+   ██ JAVASCRIPT – App.vue
+   Haupt-Komponente: Sidebar-Navigation, API-Verbindung & Datenhaltung
+   Alle API-Felder verwenden camelCase (Standard von .NET JSON)
    ========================================================= */
 
-// Die vier Unterseiten werden als eigene Komponenten eingebunden
 import KundenVerwaltung      from './components/KundenVerwaltung.vue'
 import AboVerwaltung         from './components/AboVerwaltung.vue'
 import AbrechnungsUebersicht from './components/AbrechnungsUebersicht.vue'
@@ -179,105 +148,96 @@ export default {
     EinstellungenView
   },
 
-  // data() liefert alle reaktiven Variablen der Komponente
+  /* ── data() ─────────────────────────────────────────────────────────────
+     Alle reaktiven Variablen der Komponente.
+     WICHTIG: Die API liefert camelCase (z.B. "kundennr", "abonr", "ermid")
+     weil ASP.NET Core JSON-Serialisierung standardmäßig camelCase verwendet.
+  ─────────────────────────────────────────────────────────────────────── */
   data() {
     return {
-      // Welche Seite gerade angezeigt wird (Schlüssel: 'kunden', 'abos', 'abrechnungen', 'einstellungen')
+      // Aktuell angezeigte Seite
       activeView: 'kunden',
 
-      // Überschriften für die Topbar je nach aktiver Ansicht
+      // Überschriften für die Topbar
       viewTitles: {
-        kunden:       'Kundenverwaltung',
-        abos:         'Abo-Verwaltung',
-        abrechnungen: 'Abrechnungsübersicht',
-        einstellungen:'Einstellungen'
+        kunden:        'Kundenverwaltung',
+        abos:          'Abo-Verwaltung',
+        abrechnungen:  'Abrechnungsübersicht',
+        einstellungen: 'Einstellungen'
       },
 
-      // Untertitel für die Topbar je nach aktiver Ansicht
       viewSubtitles: {
-        kunden:       'Kunden anlegen, bearbeiten & Abos zuweisen',
-        abos:         'Abotypen verwalten, Preise & Optionen',
-        abrechnungen: 'Monats- & Jahresübersichten der Einnahmen',
-        einstellungen:'Systeminformationen & API-Konfiguration'
+        kunden:        'Kunden anlegen, bearbeiten & Abos zuweisen',
+        abos:          'Abotypen verwalten, Preise & Optionen',
+        abrechnungen:  'Monats- & Jahresübersichten der Einnahmen',
+        einstellungen: 'Systeminformationen & API-Konfiguration'
       },
 
-      // Reaktiv gehaltene Stammdaten – starten leer und werden per API oder Testdaten geladen
-      kunden: [],
-      abos: [],
+      // ── Stammdaten (werden per API geladen) ──────────────────────────
+      // Feldnamen entsprechen der C# camelCase-Serialisierung:
+      // TblKunde  → { kundennr, vorname, nachname, iban, konto: { bic, bank: { bankName } } }
+      // TblAbo    → { abonr, grundpreis, kuendigsfrist, kurs, getraenke, laufzeit }
+      // TblErm.   → { ermid, ermaessigungssatz }
+      // TblKonto  → { iban, bic, bank: { bic, bankName } }
+      // TblBank   → { bic, bankName }
+      kunden:         [],
+      abos:           [],
       ermaessigungen: [],
+      konten:         [],
+      banken:         [],
 
-      // API Verbindungsstatus ('loading', 'online', 'offline')
-      apiStatus: 'loading',
+      // API Verbindungsstatus: 'loading' | 'online' | 'offline'
+      apiStatus:          'loading',
       showSuccessMessage: false,
-      apiBaseUrl: '',
+      apiBaseUrl:         '',
 
-      // Array für aktive Toast-Meldungen im UI
+      // Toast-Meldungen (werden nach 4 Sekunden automatisch entfernt)
       toasts: [],
 
-      // Fallback-Testdaten bei fehlgeschlagener API-Verbindung
+      // ── Fallback-Testdaten (wenn API nicht erreichbar) ───────────────
       testKunden: [
-        {
-          kundenNr: 'K001',
-          vorname: 'Max',
-          nachname: 'Mustermann',
-          adresse: 'Musterstr. 1, 12345 Musterstadt',
-          iban: 'DE89370400440532013000',
-          aboNr: 'A001',
-          ermaessigungssatz: 10
-        },
-        {
-          kundenNr: 'K002',
-          vorname: 'Erika',
-          nachname: 'Mustermann',
-          adresse: 'Musterweg 2, 12345 Musterstadt',
-          iban: 'DE89370400440532013001',
-          aboNr: 'A002',
-          ermaessigungssatz: 0
-        }
+        { kundennr: 1, vorname: 'Max',   nachname: 'Mustermann', iban: 'DE89370400440532013000',
+          konto: { bic: 'SPKADEFFFXX', bank: { bankName: 'Sparkasse' } } },
+        { kundennr: 2, vorname: 'Erika', nachname: 'Musterfrau',  iban: 'DE22100700000123456789',
+          konto: { bic: 'DEUTDEDDFXX', bank: { bankName: 'Deutsche Bank' } } }
       ],
       testAbos: [
-        {
-          aboNr: 'A001',
-          bezeichnung: 'Premium-Abo',
-          grundpreis: 49.90,
-          kuendigungsfrist: '2026-12-31',
-          kurs: true,
-          getraenke: true
-        },
-        {
-          aboNr: 'A002',
-          bezeichnung: 'Standard-Abo',
-          grundpreis: 29.90,
-          kuendigungsfrist: '2026-06-30',
-          kurs: false,
-          getraenke: false
-        }
+        { abonr: 1, grundpreis: 49.99, kuendigsfrist: '2026-12-31T00:00:00Z', kurs: 1, getraenke: 1, laufzeit: '1-0' },
+        { abonr: 2, grundpreis: 19.99, kuendigsfrist: '2026-06-30T00:00:00Z', kurs: 0, getraenke: 0, laufzeit: '0-6' }
       ],
       testErmaessigungen: [
-        { ermID: 'ERM01', bezeichnung: 'Student/Azubi', ermaessigungssatz: 10 },
-        { ermID: 'ERM02', bezeichnung: 'Senior', ermaessigungssatz: 15 }
+        { ermid: 1, ermaessigungssatz: 0.20 },
+        { ermid: 2, ermaessigungssatz: 0.00 }
+      ],
+      testKonten: [
+        { iban: 'DE89370400440532013000', bic: 'SPKADEFFFXX', bank: { bankName: 'Sparkasse' } },
+        { iban: 'DE22100700000123456789', bic: 'DEUTDEDDFXX', bank: { bankName: 'Deutsche Bank' } }
+      ],
+      testBanken: [
+        { bic: 'SPKADEFFFXX', bankName: 'Sparkasse' },
+        { bic: 'DEUTDEDDFXX', bankName: 'Deutsche Bank' }
       ]
     }
   },
 
-  // computed: werden automatisch neu berechnet wenn abhängige Daten sich ändern
+  // ── computed ─────────────────────────────────────────────────────────────
   computed: {
-    // Gibt das aktuelle Datum als deutschen String zurück (z.B. "Do., 21. Mai 2026")
+    // Aktuelles Datum als deutschsprachiger String
     currentDate() {
       return new Date().toLocaleDateString('de-DE', {
         weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
       })
     },
 
-    // Gibt die Übersetzung des API-Verbindungsstatus für die Anzeige zurück
+    // Anzeigetext für den API-Verbindungsstatus
     apiStatusText() {
       if (this.apiStatus === 'loading') return 'Verbinde...'
-      if (this.apiStatus === 'online') return 'API Online'
+      if (this.apiStatus === 'online')  return 'API Online'
       return 'Offline (Testdaten)'
     }
   },
 
-  // mounted() wird einmalig aufgerufen sobald die App im Browser angezeigt wird
+  // mounted() wird einmalig aufgerufen sobald die Komponente im DOM ist
   mounted() {
     this.ladeStammdaten()
   },
@@ -288,72 +248,72 @@ export default {
       this.activeView = view
     },
 
-    // Wird von KundenVerwaltung aufgerufen wenn Kundendaten geändert wurden
+    // Event-Handler: Wird aufgerufen wenn KundenVerwaltung Daten geändert hat
     onKundenUpdated(updatedKunden) {
       this.kunden = updatedKunden
     },
 
-    // Wird von AboVerwaltung aufgerufen wenn Abodaten geändert wurden
+    // Event-Handler: Wird aufgerufen wenn AboVerwaltung Daten geändert hat
     onAbosUpdated(updatedAbos) {
       this.abos = updatedAbos
     },
 
-    // Fügt eine neue Toast-Meldung hinzu und entfernt diese nach 4 Sekunden automatisch
+    // Toast-Meldung anzeigen (verschwindet nach 4 Sekunden)
     triggerToast(toast) {
       const id = Date.now()
-      this.toasts.push({
-        id,
-        text: toast.text || '',
-        type: toast.type || 'info'
-      })
+      this.toasts.push({ id, text: toast.text || '', type: toast.type || 'info' })
       setTimeout(() => {
         this.toasts = this.toasts.filter(t => t.id !== id)
       }, 4000)
     },
 
-    // Lädt Kunden, Abos und Ermäßigungen parallel von der API
+    /* ── ladeStammdaten() ─────────────────────────────────────────────
+       Lädt alle Stammdaten parallel von der C# API.
+       API-URL wird aus dem localStorage gelesen (konfigurierbar in Einstellungen).
+       Fallback: Testdaten wenn die API nicht erreichbar ist.
+    ─────────────────────────────────────────────────────────────────── */
     async ladeStammdaten() {
       const baseUrl = localStorage.getItem('apiUrl') || 'http://localhost:5000/api'
       this.apiBaseUrl = baseUrl
-      this.apiStatus = 'loading'
+      this.apiStatus  = 'loading'
       this.showSuccessMessage = false
 
       try {
-        const [resKunden, resAbos, resErmaessigungen] = await Promise.all([
+        // Alle 5 Endpunkte parallel abrufen (Promise.all)
+        const [resKunden, resAbos, resErm, resKonten, resBanken] = await Promise.all([
           fetch(`${baseUrl}/kunden`),
           fetch(`${baseUrl}/abos`),
-          fetch(`${baseUrl}/ermaessigungen`)
+          fetch(`${baseUrl}/ermaessigungen`),   // ← Neuer Controller!
+          fetch(`${baseUrl}/konten`),
+          fetch(`${baseUrl}/banken`)
         ])
 
-        if (resKunden.ok && resAbos.ok && resErmaessigungen.ok) {
-          this.kunden = await resKunden.json()
-          this.abos = await resAbos.json()
-          this.ermaessigungen = await resErmaessigungen.json()
-          
+        // Alle Antworten müssen OK sein (Status 200-299)
+        if (resKunden.ok && resAbos.ok && resErm.ok && resKonten.ok && resBanken.ok) {
+          this.kunden         = await resKunden.json()
+          this.abos           = await resAbos.json()
+          this.ermaessigungen = await resErm.json()
+          this.konten         = await resKonten.json()
+          this.banken         = await resBanken.json()
+
           this.apiStatus = 'online'
           this.showSuccessMessage = true
-          this.triggerToast({
-            text: 'Verbindung zur API hergestellt. Daten geladen.',
-            type: 'success'
-          })
-          
-          // Erfolgsmeldung nach 5 Sekunden automatisch ausblenden
-          setTimeout(() => {
-            this.showSuccessMessage = false
-          }, 5000)
+          this.triggerToast({ text: 'Verbindung zur API hergestellt. Stammdaten geladen.', type: 'success' })
+
+          // Erfolgsmeldung nach 5 Sekunden ausblenden
+          setTimeout(() => { this.showSuccessMessage = false }, 5000)
         } else {
-          throw new Error(`Verbindung erfolgreich aber Antwort fehlerhaft.`)
+          throw new Error('Mindestens ein API-Endpunkt antwortete mit einem Fehler.')
         }
       } catch (err) {
-        console.warn('API ist offline, nutze lokale Testdaten als Fallback:', err)
-        this.kunden = [...this.testKunden]
-        this.abos = [...this.testAbos]
+        console.warn('API ist offline, nutze lokale Testdaten:', err)
+        this.kunden         = [...this.testKunden]
+        this.abos           = [...this.testAbos]
         this.ermaessigungen = [...this.testErmaessigungen]
+        this.konten         = [...this.testKonten]
+        this.banken         = [...this.testBanken]
         this.apiStatus = 'offline'
-        this.triggerToast({
-          text: 'API ist offline. Testdaten geladen.',
-          type: 'warning'
-        })
+        this.triggerToast({ text: 'API ist offline. Testdaten geladen.', type: 'warning' })
       }
     }
   }
@@ -385,7 +345,7 @@ export default {
   flex-direction: column;
 }
 
-/* ── API Verbindungsstatus in der Topbar ── */
+/* ── API Verbindungsstatus ── */
 .api-status-indicator {
   display: flex;
   align-items: center;
@@ -400,13 +360,9 @@ export default {
   user-select: none;
   transition: all var(--tr-fast);
 }
-.api-status-indicator:hover {
-  border-color: var(--clr-primary);
-}
+.api-status-indicator:hover { border-color: var(--clr-primary); }
 .api-status-indicator .status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 8px; height: 8px; border-radius: 50%;
 }
 .api-status-indicator.loading .status-dot {
   background: var(--clr-info);
@@ -423,14 +379,10 @@ export default {
   animation: pulse-warn 1.5s infinite ease-in-out;
 }
 .api-status-indicator .status-refresh {
-  font-size: 10px;
-  opacity: 0.6;
-  margin-left: 2px;
+  font-size: 10px; opacity: 0.6; margin-left: 2px;
   transition: transform var(--tr-fast);
 }
-.api-status-indicator:hover .status-refresh {
-  transform: rotate(180deg);
-}
+.api-status-indicator:hover .status-refresh { transform: rotate(180deg); }
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -441,64 +393,41 @@ export default {
   50% { transform: scale(1.3); opacity: 0.4; box-shadow: 0 0 2px var(--clr-warning); }
 }
 
-/* ── API Status Banners ── */
+/* ── API Banners ── */
 .api-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-md);
+  display: flex; align-items: center; gap: var(--sp-md);
   padding: var(--sp-sm) var(--sp-lg);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 13px; font-weight: 500;
   border-bottom: 1px solid;
   animation: slideDown 250ms ease;
 }
-.api-banner.offline {
-  background: var(--clr-warning-dim);
-  border-color: rgba(255,182,39,0.25);
-  color: var(--clr-warning);
-}
-.api-banner.online {
-  background: var(--clr-success-dim);
-  border-color: rgba(54,211,153,0.25);
-  color: var(--clr-success);
-}
+.api-banner.offline { background: var(--clr-warning-dim); border-color: rgba(255,182,39,0.25); color: var(--clr-warning); }
+.api-banner.online  { background: var(--clr-success-dim); border-color: rgba(54,211,153,0.25); color: var(--clr-success); }
 @keyframes slideDown {
   from { transform: translateY(-100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(0);     opacity: 1; }
 }
 
-/* ── Toast Container & Meldungen ── */
+/* ── Toasts ── */
 .toast-container {
-  position: fixed;
-  bottom: var(--sp-lg);
-  right: var(--sp-lg);
-  z-index: 999;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-sm);
-  max-width: 380px;
+  position: fixed; bottom: var(--sp-lg); right: var(--sp-lg);
+  z-index: 999; display: flex; flex-direction: column;
+  gap: var(--sp-sm); max-width: 380px;
 }
 .toast-msg {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
+  display: flex; align-items: center; gap: var(--sp-sm);
   padding: 12px 18px;
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--rad-md);
-  box-shadow: var(--shadow-lg);
-  color: var(--clr-text);
-  font-size: 13px;
-  font-weight: 500;
-  animation: toastIn 300ms cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  background: var(--clr-surface); border: 1px solid var(--clr-border);
+  border-radius: var(--rad-md); box-shadow: var(--shadow-lg);
+  color: var(--clr-text); font-size: 13px; font-weight: 500;
+  animation: toastIn 300ms cubic-bezier(0.68,-0.55,0.27,1.55);
 }
 .toast-msg.success { border-left: 4px solid var(--clr-success); }
 .toast-msg.warning { border-left: 4px solid var(--clr-warning); }
 .toast-msg.danger  { border-left: 4px solid var(--clr-danger); }
 .toast-msg.info    { border-left: 4px solid var(--clr-primary); }
-
 @keyframes toastIn {
   from { transform: translateX(100%) scale(0.9); opacity: 0; }
-  to { transform: translateX(0) scale(1); opacity: 1; }
+  to   { transform: translateX(0)     scale(1);  opacity: 1; }
 }
 </style>

@@ -2,29 +2,28 @@
   <!-- ==========================================
     KundenVerwaltung.vue
     MUSS-KRITERIUM: Kunden anlegen, bearbeiten, Abos zuweisen, IBAN-Zuordnung
+    Feldnamen entsprechen der C# API (camelCase): kundennr, vorname, nachname, iban...
     ========================================== -->
   <div class="page">
 
-    <!-- Page Header -->
     <div class="page-header">
       <div>
         <h2 class="page-title">Kundenverwaltung</h2>
         <p class="page-desc">Kunden anlegen, bearbeiten und Aboverträge zuweisen</p>
       </div>
       <div class="flex gap-sm">
-        <button class="btn btn-ghost" id="btn-kunden-export" @click="$emit('export')">
-          ⬇ Export
-        </button>
-        <button class="btn btn-primary" id="btn-kunden-neu" @click="openModal(null)">
-          + Neuer Kunde
-        </button>
+        <!-- JavaScript: @click-Binding ruft exportKunden() auf -->
+        <button class="btn btn-ghost" id="btn-kunden-export" @click="exportKunden">⬇ Export</button>
+        <!-- JavaScript: @click mit null = Neuanlage-Modus -->
+        <button class="btn btn-primary" id="btn-kunden-neu" @click="openModal(null)">+ Neuer Kunde</button>
       </div>
     </div>
 
-    <!-- Stat-Kacheln -->
+    <!-- Statistik-Kacheln (computed-Werte) -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon blue">👤</div>
+        <!-- JavaScript: computed 'kunden.length' reaktiv -->
         <div class="stat-value">{{ kunden.length }}</div>
         <div class="stat-label">Kunden gesamt</div>
       </div>
@@ -49,24 +48,16 @@
     <div class="filter-bar">
       <div class="search-input-wrap">
         <span class="search-icon">🔍</span>
-        <input
-          id="kunden-suche"
-          type="text"
-          v-model="suchbegriff"
-          placeholder="Name, KundenNr oder IBAN suchen …"
-        />
+        <!-- JavaScript: v-model bindet suchbegriff reaktiv ans Eingabefeld -->
+        <input id="kunden-suche" type="text" v-model="suchbegriff"
+               placeholder="Name, KundenNr oder IBAN suchen …" />
       </div>
-      <select id="filter-abo" v-model="filterAbo" style="width:auto; min-width:160px;">
+      <!-- JavaScript: v-model bindet filterAbo; v-for erzeugt Optionen aus abos-Array -->
+      <select id="filter-abo" v-model="filterAboNr" style="width:auto;min-width:160px;">
         <option value="">Alle Abos</option>
-        <option v-for="abo in abos" :key="abo.aboNr" :value="abo.aboNr">
-          Abo #{{ abo.aboNr }}
+        <option v-for="abo in abos" :key="abo.abonr" :value="abo.abonr">
+          Abo #{{ abo.abonr }} ({{ formatPreis(abo.grundpreis) }} €)
         </option>
-      </select>
-      <select id="filter-status" v-model="filterStatus" style="width:auto; min-width:140px;">
-        <option value="">Alle Status</option>
-        <option value="aktiv">Aktiv</option>
-        <option value="ermaessigt">Ermäßigt</option>
-        <option value="ohneAbo">Ohne Abo</option>
       </select>
     </div>
 
@@ -76,51 +67,59 @@
         <table>
           <thead>
             <tr>
-              <th>KundenNr</th>
-              <th>Vorname</th>
-              <th>Nachname</th>
-              <th>IBAN</th>
-              <th>BIC</th>
-              <th>Bank</th>
-              <th>AboNr</th>
-              <th>Ermäßigung</th>
-              <th>Monatsbeitrag</th>
+              <th @click="sortiereNach('kundennr')" style="cursor:pointer;user-select:none;">
+                KundenNr <span v-if="sortBy === 'kundennr'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th @click="sortiereNach('vorname')" style="cursor:pointer;user-select:none;">
+                Vorname <span v-if="sortBy === 'vorname'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th @click="sortiereNach('nachname')" style="cursor:pointer;user-select:none;">
+                Nachname <span v-if="sortBy === 'nachname'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th @click="sortiereNach('iban')" style="cursor:pointer;user-select:none;">
+                IBAN <span v-if="sortBy === 'iban'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th @click="sortiereNach('bic')" style="cursor:pointer;user-select:none;">
+                BIC <span v-if="sortBy === 'bic'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th @click="sortiereNach('bank')" style="cursor:pointer;user-select:none;">
+                Bank <span v-if="sortBy === 'bank'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th @click="sortiereNach('ermaessigung')" style="cursor:pointer;user-select:none;">
+                Ermäßigung <span v-if="sortBy === 'ermaessigung'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
               <th>Aktionen</th>
             </tr>
           </thead>
           <tbody>
-            <!-- Zeile pro Kunde – gefiltertes Array per computed "gefilterteKunden" -->
-            <tr v-for="kunde in gefilterteKunden" :key="kunde.kundenNr" :id="'row-kd-' + kunde.kundenNr">
-              <td class="td-mono">{{ kunde.kundenNr }}</td>
+            <!-- JavaScript: v-for über computed 'gefilterteKunden' -->
+            <tr v-for="kunde in gefilterteKunden" :key="kunde.kundennr" :id="'row-kd-' + kunde.kundennr">
+              <td class="td-mono">{{ kunde.kundennr }}</td>
               <td class="font-bold">{{ kunde.vorname }}</td>
               <td class="font-bold">{{ kunde.nachname }}</td>
-              <td class="td-mono">{{ ibanMask(kunde.iban) }}</td>
-              <td class="td-mono">{{ kunde.bic || '—' }}</td>
-              <td class="td-muted">{{ kunde.bank || '—' }}</td>
+              <!-- IBAN aus dem Konto-Navigationsobjekt (kunde.konto.iban oder direkt kunde.iban) -->
+              <td class="td-mono">{{ ibanMask(kunde.iban || kunde.konto?.iban) }}</td>
+              <!-- BIC und Bankname kommen über das verschachtelte Navigationsobjekt -->
+              <td class="td-mono">{{ kunde.konto?.bic || '—' }}</td>
+              <td class="td-muted">{{ kunde.konto?.bank?.bankName || '—' }}</td>
               <td>
-                <span v-if="kunde.aboNr" class="badge badge-primary">
-                  Abo #{{ kunde.aboNr }}
-                </span>
-                <span v-else class="badge badge-neutral">– kein Abo –</span>
-              </td>
-              <td>
-                <span v-if="kunde.ermaessigungssatz" class="badge badge-warning">
-                  {{ kunde.ermaessigungssatz }}%
+                <span v-if="kunde.ermaessigung && kunde.ermaessigung.ermaessigungssatz > 0" class="badge badge-warning">
+                  {{ getErmaessigungName(kunde.ermaessigung.ermid) }} ({{ (kunde.ermaessigung.ermaessigungssatz * 100).toFixed(0) }}%)
                 </span>
                 <span v-else class="td-muted">—</span>
               </td>
-              <td class="font-bold" style="color:var(--clr-accent)">
-                {{ monatsbeitrag(kunde) }} €
-              </td>
               <td>
                 <div class="flex gap-sm">
-                  <button class="btn btn-sm btn-ghost" :id="'btn-edit-kd-' + kunde.kundenNr" @click="openModal(kunde)">✏️</button>
-                  <button class="btn btn-sm btn-danger" :id="'btn-del-kd-' + kunde.kundenNr" @click="loescheKunde(kunde.kundenNr)">🗑</button>
+                  <!-- JavaScript: @click übergibt das aktuelle kunde-Objekt ans Modal -->
+                  <button class="btn btn-sm btn-ghost" :id="'btn-edit-kd-' + kunde.kundennr"
+                          @click="openModal(kunde)">✏️</button>
+                  <button class="btn btn-sm btn-danger" :id="'btn-del-kd-' + kunde.kundennr"
+                          @click="loescheKunde(kunde.kundennr)">🗑</button>
                 </div>
               </td>
             </tr>
 
-            <!-- Empty State -->
+            <!-- Leer-Zustand -->
             <tr v-if="gefilterteKunden.length === 0">
               <td colspan="8">
                 <div class="empty-state">
@@ -138,6 +137,7 @@
     <!-- ==========================================
       MODAL: Kunden anlegen / bearbeiten
     ========================================== -->
+    <!-- JavaScript: v-if steuert Sichtbarkeit; @click.self schließt bei Klick außerhalb -->
     <div class="modal-overlay" v-if="showModal" @click.self="closeModal" id="modal-kunde-overlay">
       <div class="modal" id="modal-kunde">
         <div class="modal-header">
@@ -147,98 +147,72 @@
           <button class="btn btn-icon btn-ghost" id="btn-modal-close" @click="closeModal">✕</button>
         </div>
 
-        <!-- Formular -->
+        <!-- JavaScript: @submit.prevent verhindert normales HTML-Formular-Submit -->
         <form @submit.prevent="speichereKunde" id="form-kunde">
           <div class="form-grid">
 
-            <!-- KundenNr (automatisch / read-only beim Bearbeiten) -->
             <div class="form-group">
-              <label for="input-kundennr">KundenNr</label>
-              <input
-                id="input-kundennr"
-                type="text"
-                v-model="form.kundenNr"
-                placeholder="Automatisch"
-                :readonly="!!editKunde"
-              />
+              <label for="input-kundennr">KundenNr (automatisch)</label>
+              <input id="input-kundennr" type="text" v-model="form.kundennr"
+                     placeholder="Wird automatisch generiert" readonly disabled />
             </div>
 
-            <!-- Vorname -->
             <div class="form-group">
               <label for="input-vorname">Vorname *</label>
+              <!-- JavaScript: v-model bindet form.vorname bidirektional -->
               <input id="input-vorname" type="text" v-model="form.vorname" required placeholder="Max" />
             </div>
 
-            <!-- Nachname -->
             <div class="form-group">
               <label for="input-nachname">Nachname *</label>
               <input id="input-nachname" type="text" v-model="form.nachname" required placeholder="Mustermann" />
             </div>
 
-            <!-- IBAN -->
+            <!-- IBAN + BIC: aus tbl_Konto -->
             <div class="form-group full">
-              <label for="input-iban">IBAN (tbl_Konto) *</label>
-              <input
-                id="input-iban"
-                type="text"
-                v-model="form.iban"
-                required
-                minlength="22"
-                placeholder="DE00 0000 0000 0000 0000 00"
-                maxlength="22"
-              />
+              <label for="input-iban">IBAN (aus tbl_Konto) *</label>
+              <input id="input-iban" type="text" v-model="form.iban" required
+                     @input="form.iban = form.iban.replace(/\s/g, '').toUpperCase()"
+                     placeholder="DE00000000000000000000" minlength="22" maxlength="22" />
             </div>
 
-            <!-- BIC & Bank -->
             <div class="form-group">
-              <label for="input-bic">BIC (tbl_Bank) *</label>
-              <input id="input-bic" type="text" v-model="form.bic" required placeholder="z.B. GENODEF1XXX" />
-            </div>
-            <div class="form-group">
-              <label for="input-bank">Bank Name *</label>
-              <input id="input-bank" type="text" v-model="form.bank" required placeholder="z.B. Musterbank" />
+              <label for="input-bic">BIC (aus tbl_Bank) *</label>
+              <!-- JavaScript: Autovervollständigung aus Konten-Array beim Tippen -->
+              <input id="input-bic" type="text" v-model="form.bic" required
+                     @input="onBicInput"
+                     placeholder="z.B. SPKADEFFFXX" list="bic-list" />
+              <!-- JavaScript: datalist generiert Vorschläge aus dem banken-Array -->
+              <datalist id="bic-list">
+                <option v-for="bank in banken" :key="bank.bic" :value="bank.bic">{{ bank.bankName }}</option>
+              </datalist>
             </div>
 
-            <!-- Abo zuweisen -->
             <div class="form-group">
-              <label for="select-abo">Abo zuweisen</label>
-              <select id="select-abo" v-model="form.aboNr">
-                <option value="">– Kein Abo –</option>
-                <option v-for="abo in abos" :key="abo.aboNr" :value="abo.aboNr">
-                  Abo #{{ abo.aboNr }} ({{ abo.grundpreis }} €/Monat)
+              <label for="input-bank">Bankname *</label>
+              <input id="input-bank" type="text" v-model="form.bankName" required placeholder="z.B. Sparkasse" />
+            </div>
+
+            <div class="form-group">
+              <label for="input-abo">Abo-Vertrag (optional)</label>
+              <select id="input-abo" v-model.number="form.abonr">
+                <option :value="0">Kein Abo</option>
+                <option v-for="abo in abos" :key="abo.abonr" :value="abo.abonr">
+                  Abo #{{ abo.abonr }} ({{ formatPreis(abo.grundpreis) }} €)
                 </option>
               </select>
             </div>
 
-            <!-- Ermäßigung (Dropdown aus tbl_Ermaessigung via API) -->
             <div class="form-group">
-              <label for="select-ermaessigung">Ermäßigung</label>
-              <select
-                id="select-ermaessigung"
-                v-model.number="form.ermaessigungssatz"
-              >
-                <!-- Standardoption: keine Ermäßigung -->
-                <option :value="0">– Keine Ermäßigung –</option>
-                <!-- Eine Option pro Ermäßigungsart aus der API -->
-                <option
-                  v-for="erm in ermaessigungen"
-                  :key="erm.ermID"
-                  :value="erm.ermaessigungssatz"
-                >
-                  {{ erm.bezeichnung }} ({{ erm.ermaessigungssatz }}%)
+              <label for="input-ermaessigung">Ermäßigung (optional)</label>
+              <select id="input-ermaessigung" v-model.number="form.ermid">
+                <option :value="0">Keine Ermäßigung</option>
+                <option v-for="erm in ermaessigungen" :key="erm.ermid" :value="erm.ermid">
+                  {{ getErmaessigungName(erm.ermid) }} ({{ (erm.ermaessigungssatz * 100).toFixed(0) }}%)
                 </option>
               </select>
             </div>
 
-          </div>
-
-          <!-- Berechneter Preis Vorschau -->
-          <div class="alert alert-info mt-md" v-if="form.aboNr">
-            💡 Monatlicher Beitrag:
-            <strong>{{ preisVorschau }} €</strong>
-            <span v-if="form.ermaessigungssatz > 0">
-              (inkl. {{ form.ermaessigungssatz }}% Ermäßigung)
-            </span>
           </div>
 
           <div class="modal-footer">
@@ -256,140 +230,257 @@
 
 <script>
 /* =========================================================
-   JAVASCRIPT – KundenVerwaltung.vue
-   Zeigt Kundenliste, Filter, Modal-Formular für CRUD
-   Props:  kunden[] (alle Kunden), abos[] (für Abo-Dropdown)
-   Emits:  'kunden-updated' → aktualisiertes Array an App.vue
+   ██ JAVASCRIPT – KundenVerwaltung.vue
+   CRUD für Kunden über die C# API.
+   WICHTIG: C# API liefert camelCase-Felder:
+     kundennr  (nicht KundenNr)
+     vorname   (nicht Vorname)
+     nachname  (nicht Nachname)
+     iban      (nicht IBAN)
+     konto     (Navigation: { bic, bank: { bankName } })
    ========================================================= */
 
 export default {
   name: 'KundenVerwaltung',
 
-  // Props = Daten die von der übergeordneten Komponente (App.vue) übergeben werden
+  // Props: Daten von der übergeordneten Komponente (App.vue)
   props: {
-    kunden:         { type: Array, default: () => [] }, // Liste aller Kunden
-    abos:           { type: Array, default: () => [] }, // Liste aller Abos (für das Dropdown im Modal)
-    ermaessigungen: { type: Array, default: () => [] }  // ✅ IMPLEMENTIERT: Ermäßigungen aus tbl_Ermaessigung (für Dropdown)
+    kunden:         { type: Array, default: () => [] },
+    abos:           { type: Array, default: () => [] },
+    ermaessigungen: { type: Array, default: () => [] },
+    konten:         { type: Array, default: () => [] },
+    banken:         { type: Array, default: () => [] }
   },
 
-  // Welche Events diese Komponente nach oben senden darf
-  emits: ['kunden-updated', 'export'],
+  emits: ['kunden-updated', 'show-toast'],
 
-  // data() = alle reaktiven Variablen dieser Komponente
   data() {
     return {
-      // Suchwort aus dem Suchfeld oben
       suchbegriff:  '',
-      // Aktuell gewählter Abo-Filter (leer = alle)
-      filterAbo:    '',
-      // Aktuell gewählter Status-Filter (leer = alle)
-      filterStatus: '',
+      filterAboNr:  '',
+      showModal:    false,
+      editKunde:    null,
+      sortBy:       'kundennr',
+      sortOrder:    'asc',
 
-      // Steuert ob das Modal (Formular-Popup) sichtbar ist
-      showModal: false,
-      // null = Neuanlage, sonst das Kunden-Objekt das bearbeitet wird
-      editKunde: null,
-
-      // Formular-Felder – werden mit v-model an die Input-Felder gebunden
+      // Formularfelder – verwenden camelCase wie die API
       form: {
-        kundenNr:          '',
-        vorname:           '',
-        nachname:          '',
-        iban:              '',
-        bic:               '',
-        bank:              '',
-        aboNr:             '',
-        ermaessigungssatz: 0
+        kundennr: '',
+        vorname:  '',
+        nachname: '',
+        iban:     '',
+        bic:      '',
+        bankName: '',
+        abonr:    0,
+        ermid:    0
       }
     }
   },
 
-  // computed = berechnete Eigenschaften, werden bei Änderung automatisch aktualisiert
   computed: {
-    // Gibt die Kundenliste gefiltert nach Suchwort, Abo und Status zurück
+    // Filtert die Kundenliste nach Suchbegriff und Abo-Filter
     gefilterteKunden() {
-      return this.kunden.filter(k => {
+      const gefiltert = this.kunden.filter(k => {
         const q = this.suchbegriff.toLowerCase()
-        // Prüft ob der Suchbegriff in einem der Felder vorkommt
         const matchSearch = !q ||
-          k.vorname?.toLowerCase().includes(q) ||
+          k.vorname?.toLowerCase().includes(q)  ||
           k.nachname?.toLowerCase().includes(q) ||
-          String(k.kundenNr).includes(q) ||
+          String(k.kundennr).includes(q)        ||
           k.iban?.toLowerCase().replace(/\s/g,'').includes(q.replace(/\s/g,'')) ||
-          k.bic?.toLowerCase().includes(q) ||
-          k.bank?.toLowerCase().includes(q)
+          k.konto?.bic?.toLowerCase().includes(q) ||
+          k.konto?.bank?.bankName?.toLowerCase().includes(q)
 
-        // Prüft ob der Abo-Filter zutrifft
-        const matchAbo = !this.filterAbo || k.aboNr === this.filterAbo
+        // Abo-Filter: Prüft ob der Kunde ein entsprechendes Abo hat (über activeAbo oder direkt)
+        const matchAbo = !this.filterAboNr
+          || k.abonr === this.filterAboNr
+          || k.aktivesAbo?.abonr === this.filterAboNr
 
-        // Prüft ob der Status-Filter zutrifft
-        let matchStatus = true
-        if (this.filterStatus === 'aktiv')      matchStatus = !!k.aboNr
-        if (this.filterStatus === 'ermaessigt') matchStatus = !!k.ermaessigungssatz
-        if (this.filterStatus === 'ohneAbo')    matchStatus = !k.aboNr
+        return matchSearch && matchAbo
+      })
 
-        return matchSearch && matchAbo && matchStatus
+      // Sortieren
+      return gefiltert.sort((a, b) => {
+        let valA, valB
+
+        if (this.sortBy === 'kundennr') {
+          valA = a.kundennr
+          valB = b.kundennr
+        } else if (this.sortBy === 'vorname') {
+          valA = a.vorname || ''
+          valB = b.vorname || ''
+        } else if (this.sortBy === 'nachname') {
+          valA = a.nachname || ''
+          valB = b.nachname || ''
+        } else if (this.sortBy === 'iban') {
+          valA = a.iban || a.konto?.iban || ''
+          valB = b.iban || b.konto?.iban || ''
+        } else if (this.sortBy === 'bic') {
+          valA = a.konto?.bic || ''
+          valB = b.konto?.bic || ''
+        } else if (this.sortBy === 'bank') {
+          valA = a.konto?.bank?.bankName || ''
+          valB = b.konto?.bank?.bankName || ''
+        } else if (this.sortBy === 'ermaessigung') {
+          valA = a.ermaessigung?.ermaessigungssatz || 0
+          valB = b.ermaessigung?.ermaessigungssatz || 0
+        }
+
+        if (valA === undefined) valA = ''
+        if (valB === undefined) valB = ''
+
+        let compare = 0
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          compare = valA - valB
+        } else {
+          compare = String(valA).localeCompare(String(valB))
+        }
+
+        return this.sortOrder === 'asc' ? compare : -compare
       })
     },
 
-    // Anzahl Kunden mit einem aktiven Abo (für die Statistik-Kachel)
-    aktivKunden()      { return this.kunden.filter(k =>  k.aboNr).length },
-    // Anzahl Kunden mit einer Ermäßigung > 0
-    ermaessigtKunden() { return this.kunden.filter(k =>  k.ermaessigungssatz > 0).length },
-    // Anzahl Kunden ohne Abo
-    ohneAbo()          { return this.kunden.filter(k => !k.aboNr).length },
-
-    // Berechnet den Monatsbeitrag live im Modal (Grundpreis - Ermäßigung %)
-    preisVorschau() {
-      const abo = this.abos.find(a => a.aboNr === this.form.aboNr)
-      if (!abo) return '0,00'
-      const basis = parseFloat(abo.grundpreis) || 0
-      const rabatt = parseFloat(this.form.ermaessigungssatz) || 0
-      return (basis * (1 - rabatt / 100)).toFixed(2).replace('.', ',')
-    }
+    // Kunden mit mindestens einem verknüpften Abo (über KundenAbo)
+    // Vereinfacht: zählt alle Kunden (vollständige Implementierung über KundenAbo-Endpunkt)
+    aktivKunden()      { return this.kunden.length },
+    ermaessigtKunden() { return this.kunden.filter(k => k.ermaessigung?.ermaessigungssatz > 0).length },
+    ohneAbo()          { return 0 } // Würde einen JOIN über KundenAbo benötigen
   },
 
   methods: {
-    // Öffnet das Modal-Formular:
-    // - Bei null → Neuanlage (leeres Formular)
-    // - Bei Kunden-Objekt → Bearbeiten (Formular mit vorhandenen Daten befüllen)
+    // Öffnet das Modal im Neuanlage- oder Bearbeitenmodus
     openModal(kunde) {
       this.editKunde = kunde
       if (kunde) {
-        this.form = { ...kunde } // Kopie des Objekts, damit Änderungen nicht sofort übernommen werden
+        // Vorhandene Daten ins Formular laden
+        this.form = {
+          kundennr: kunde.kundennr,
+          vorname:  kunde.vorname  || '',
+          nachname: kunde.nachname || '',
+          iban:     kunde.iban || kunde.konto?.iban || '',
+          bic:      kunde.konto?.bic || '',
+          bankName: kunde.konto?.bank?.bankName || '',
+          abonr:    kunde.abonr    || (kunde.aktivesAbo?.abonr || 0),
+          ermid:    kunde.ermid    || (kunde.ermaessigung?.ermid || 0)
+        }
       } else {
-        this.form = { kundenNr: '', vorname: '', nachname: '', iban: '', bic: '', bank: '', aboNr: '', ermaessigungssatz: 0 }
+        // Leeres Formular für Neuanlage
+        this.form = {
+          kundennr: '',
+          vorname: '',
+          nachname: '',
+          iban: '',
+          bic: '',
+          bankName: '',
+          abonr: 0,
+          ermid: 0
+        }
       }
       this.showModal = true
     },
 
-    // Schließt das Modal und setzt editKunde zurück
     closeModal() {
       this.showModal = false
       this.editKunde = null
     },
 
-    // ✅ IMPLEMENTIERT: Kunden speichern (Neuanlage = POST, Bearbeiten = PUT)
+    sortiereNach(feld) {
+      if (this.sortBy === feld) {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc'
+      } else {
+        this.sortBy = feld
+        this.sortOrder = 'asc'
+      }
+    },
+
+    onBicInput() {
+      this.form.bic = (this.form.bic || '').toUpperCase().trim();
+      const gefundeneBank = this.banken.find(b => b.bic === this.form.bic);
+      if (gefundeneBank) {
+        this.form.bankName = gefundeneBank.bankName;
+      }
+    },
+
+    getErmaessigungName(ermid) {
+      const names = {
+        1: 'Student',
+        2: 'Keine Ermäßigung',
+        3: 'Senior',
+        4: 'Firmenrabatt',
+        5: 'Jugend/Schüler',
+        6: 'Sonderaktion'
+      };
+      return names[ermid] || `Ermäßigung #${ermid}`;
+    },
+
+    /* ── speichereKunde() ─────────────────────────────────────────────
+       Sendet POST (Neuanlage) oder PUT (Bearbeiten) an die C# API.
+       Ablauf:
+       1. Konto anlegen/prüfen (POST /api/konten)
+       2. Kunde anlegen/aktualisieren (POST oder PUT /api/kunden)
+       3. Kundenliste neu laden
+    ──────────────────────────────────────────────────────────────── */
     async speichereKunde() {
       const baseUrl = localStorage.getItem('apiUrl') || 'http://localhost:5000/api'
 
-      // Bei Neuanlage: Oracle-DB vergibt kundenNr automatisch → kein Pfad-Parameter
-      // Bei Bearbeiten: kundenNr als Pfad-Parameter übergeben (z.B. /kunden/K001)
-      const url = this.editKunde
-        ? `${baseUrl}/kunden/${this.form.kundenNr}`
-        : `${baseUrl}/kunden`
-      const method = this.editKunde ? 'PUT' : 'POST'
+      // IBAN bereinigen (Leerzeichen entfernen) und in Großbuchstaben umwandeln
+      const cleanIban = (this.form.iban || '').replace(/\s/g, '').toUpperCase()
+      
+      // Validierung: Eine deutsche/Standard-IBAN in diesem Kontext muss exakt 22 Zeichen lang sein
+      if (cleanIban.length !== 22) {
+        this.$emit('show-toast', {
+          text: 'Fehler: Eine gültige IBAN muss exakt 22 Zeichen lang sein.',
+          type: 'danger'
+        })
+        return
+      }
+
+      // Bereinigte IBAN zurückschreiben, damit sie korrekt an die API übermittelt wird
+      this.form.iban = cleanIban
 
       try {
-        // Formular-Daten als JSON an die API senden
+        // Schritt 1: Konto anlegen falls es noch nicht existiert
+        const kontoBody = { iban: this.form.iban, bic: this.form.bic }
+        const kontoExists = await fetch(`${baseUrl}/konten/${encodeURIComponent(this.form.iban)}`)
+
+        if (!kontoExists.ok) {
+          // Konto existiert nicht → erst Bank anlegen, dann Konto
+          const bankExists = await fetch(`${baseUrl}/banken/${encodeURIComponent(this.form.bic)}`)
+          if (!bankExists.ok) {
+            await fetch(`${baseUrl}/banken`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bic: this.form.bic, bankName: this.form.bankName })
+            })
+          }
+          await fetch(`${baseUrl}/konten`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(kontoBody)
+          })
+        }
+
+        // Schritt 2: Kunde anlegen oder aktualisieren
+        // Das API erwartet: { vorname, nachname, iban, abonr, ermid }
+        const kundeBody = {
+          kundennr: this.form.kundennr || 0,
+          vorname:  this.form.vorname,
+          nachname: this.form.nachname,
+          iban:     this.form.iban,
+          abonr:    this.form.abonr || null,
+          ermid:    this.form.ermid || null
+        }
+
+        const url    = this.editKunde ? `${baseUrl}/kunden/${this.form.kundennr}` : `${baseUrl}/kunden`
+        const method = this.editKunde ? 'PUT' : 'POST'
+
         const res = await fetch(url, {
-          method: method,
+          method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.form)
+          body: JSON.stringify(kundeBody)
         })
 
         if (res.ok) {
-          // Nach Erfolg aktuelle Liste nachladen (enthält die echte KundenNr der DB)
+          // Schritt 3: Kundenliste neu laden (enthält echte KundenNr + Navigation)
           const resKunden = await fetch(`${baseUrl}/kunden`)
           if (resKunden.ok) {
             this.$emit('kunden-updated', await resKunden.json())
@@ -399,78 +490,80 @@ export default {
             type: 'success'
           })
         } else {
-          this.$emit('show-toast', {
-            text: `Fehler beim Speichern über die API. Status: ${res.status}`,
-            type: 'danger'
-          })
+          const fehler = await res.text()
+          this.$emit('show-toast', { text: `Fehler beim Speichern: ${fehler}`, type: 'danger' })
         }
       } catch (err) {
-        // Offline-Fallback: Änderung nur lokal speichern
-        console.warn('API offline – Änderung nur lokal.', err)
+        // Offline-Fallback
+        console.warn('API offline – lokale Änderung.', err)
         let neueKunden = [...this.kunden]
         if (this.editKunde) {
-          const idx = neueKunden.findIndex(k => k.kundenNr === this.form.kundenNr)
-          if (idx !== -1) neueKunden[idx] = { ...this.form }
+          const idx = neueKunden.findIndex(k => k.kundennr === this.form.kundennr)
+          if (idx !== -1) neueKunden[idx] = {
+            ...neueKunden[idx],
+            vorname: this.form.vorname,
+            nachname: this.form.nachname,
+            iban: this.form.iban
+          }
         } else {
-          // Temporäre Nummer damit der Eintrag im Browser sichtbar ist
-          neueKunden.push({ ...this.form, kundenNr: 'TEMP-' + Date.now() })
+          neueKunden.push({ ...this.form, kundennr: 'TEMP-' + Date.now() })
         }
         this.$emit('kunden-updated', neueKunden)
-        this.$emit('show-toast', {
-          text: 'API ist offline. Kunde wurde temporär lokal gespeichert.',
-          type: 'warning'
-        })
+        this.$emit('show-toast', { text: 'API offline. Lokal gespeichert.', type: 'warning' })
       }
 
       this.closeModal()
     },
 
-    // ✅ IMPLEMENTIERT: Kunden löschen (lokal sofort, API im Hintergrund)
+    // Löscht einen Kunden per DELETE-Request
     async loescheKunde(nr) {
       if (!confirm(`Kunden #${nr} wirklich löschen?`)) return
 
-      // Sofort lokal entfernen → UI reagiert ohne Wartezeit
-      const neueKunden = this.kunden.filter(k => k.kundenNr !== nr)
+      // Sofort lokal entfernen (Optimistic UI)
+      const neueKunden = this.kunden.filter(k => k.kundennr !== nr)
       this.$emit('kunden-updated', neueKunden)
 
-      // API im Hintergrund benachrichtigen
       const baseUrl = localStorage.getItem('apiUrl') || 'http://localhost:5000/api'
       try {
         const res = await fetch(`${baseUrl}/kunden/${nr}`, { method: 'DELETE' })
         if (res.ok) {
-          this.$emit('show-toast', {
-            text: `Kunde #${nr} erfolgreich über die API gelöscht.`,
-            type: 'success'
-          })
+          this.$emit('show-toast', { text: `Kunde #${nr} gelöscht.`, type: 'success' })
         } else {
-          this.$emit('show-toast', {
-            text: `Kunde #${nr} lokal gelöscht, aber API-Fehler: ${res.status}`,
-            type: 'danger'
-          })
+          this.$emit('show-toast', { text: `API-Fehler beim Löschen: ${res.status}`, type: 'danger' })
         }
       } catch (err) {
-        console.warn('API offline. Löschen erfolgte nur lokal.')
-        this.$emit('show-toast', {
-          text: `Kunde #${nr} wurde nur lokal gelöscht (API offline).`,
-          type: 'warning'
-        })
+        this.$emit('show-toast', { text: `Kunde #${nr} lokal gelöscht (API offline).`, type: 'warning' })
       }
     },
 
-    // Versteckt die IBAN – zeigt nur erste 4 und letzte 4 Zeichen (Datenschutz)
+    // CSV-Export der aktuellen Kundenliste (berücksichtigt Filter)
+    exportKunden() {
+      const zeilen = ['KundenNr;Vorname;Nachname;IBAN;BIC;Bank']
+      const exportList = this.gefilterteKunden || this.kunden
+      exportList.forEach(k => {
+        zeilen.push(`${k.kundennr};${k.vorname};${k.nachname};${k.iban || ''};${k.konto?.bic || ''};${k.konto?.bank?.bankName || ''}`)
+      })
+      const blob = new Blob([zeilen.join('\n')], { type: 'text/csv;charset=utf-8;' })
+      const url  = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href     = url
+      link.download = 'kunden_export.csv'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    },
+
+    // Maskiert IBAN für Datenschutz: DE89...3000 → "DE89 **** **** **** 3000"
     ibanMask(iban) {
       if (!iban) return '—'
       const clean = iban.replace(/\s/g, '')
       return clean.slice(0, 4) + ' **** **** **** ' + clean.slice(-4)
     },
 
-    // Berechnet den monatlichen Beitrag eines Kunden (Grundpreis minus Ermäßigung)
-    monatsbeitrag(kunde) {
-      const abo = this.abos.find(a => a.aboNr === kunde.aboNr)
-      if (!abo) return '0,00'
-      const basis = parseFloat(abo.grundpreis) || 0
-      const rabatt = parseFloat(kunde.ermaessigungssatz) || 0
-      return (basis * (1 - rabatt / 100)).toFixed(2).replace('.', ',')
+    // Formatiert Dezimalzahl als Preis: 49.99 → "49,99"
+    formatPreis(p) {
+      return parseFloat(p || 0).toFixed(2).replace('.', ',')
     }
   }
 }
