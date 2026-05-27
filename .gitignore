@@ -21,3 +21,17 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Backend (inside fitnessabrechnung)
+backend/[Oo]bj/
+backend/.vs/
+backend/*.suo
+backend/*.user
+backend/*.userosscache
+backend/*.sln.docstates
+backend/app.db
+backend/*.db
+backend/*.db-journal
+backend/*.db-shm
+backend/*.db-wal
+

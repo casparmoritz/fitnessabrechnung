@@ -1,0 +1,22 @@
+## Build outputs
+[Bb]in/
+[Oo]bj/
+
+## Database/SQLite files
+app.db
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+## IDEs/Editors
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## OS metadata
+.DS_Store
+Thumbs.db
